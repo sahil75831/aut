@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EC2 Detector - Signal Collection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0e17;
+            color: #00ff41;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #0d1520;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #00ff41;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
+        }
+        h1 {
+            color: #00ff41;
+            font-size: 24px;
+            border-bottom: 2px solid #00ff41;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .status {
+            background: #0d1520;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border-left: 3px solid #ffaa00;
+        }
+        .signal-group {
+            background: #0d1520;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 5px;
+            border-left: 3px solid #00ff41;
+        }
+        .signal-group.bot {
+            border-left-color: #ff0040;
+        }
+        .signal-group.human {
+            border-left-color: #00ff41;
+        }
+        .signal-name {
+            color: #88aaff;
+            font-weight: bold;
+            display: inline-block;
+            min-width: 180px;
+        }
+        .signal-value {
+            color: #ffffff;
+            font-weight: bold;
+        }
+        .signal-value.good {
+            color: #00ff41;
+        }
+        .signal-value.bad {
+            color: #ff0040;
+        }
+        .signal-value.warning {
+            color: #ffaa00;
+        }
+        .score {
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+        }
+        .score.bot {
+            background: rgba(255, 0, 64, 0.2);
+            border: 2px solid #ff0040;
+            color: #ff0040;
+        }
+        .score.human {
+            background: rgba(0, 255, 65, 0.2);
+            border: 2px solid #00ff41;
+            color: #00ff41;
+        }
+        .score.suspicious {
+            background: rgba(255, 170, 0, 0.2);
+            border: 2px solid #ffaa00;
+            color: #ffaa00;
+        }
+        .timestamp {
+            color: #666;
+            font-size: 12px;
+            text-align: right;
+            margin-top: 20px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #00ff41;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .error {
+            color: #ff0040;
+            background: rgba(255, 0, 64, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .env-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .env-badge.ec2 {
+            background: #ff0040;
+            color: white;
+        }
+        .env-badge.mobile {
+            background: #00aaff;
+            color: white;
+        }
+        .env-badge.laptop {
+            background: #00ff41;
+            color: #0a0e17;
+        }
+        .env-badge.unknown {
+            background: #666;
+            color: white;
+        }
+        #results {
+            display: none;
+        }
+        #results.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 EC2 Detection Sensor Suite</h1>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Collecting signals...</p>
+        </div>
+
+        <div id="results">
+            <div id="status" class="status">
+                <span id="environmentLabel">🌐 Environment: <span id="envName">Unknown</span></span>
+                <span id="scoreDisplay" class="score">--</span>
+            </div>
+
+            <div id="signals"></div>
+
+            <div class="timestamp">
+                Collected: <span id="timestamp"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // COMPLETE SENSOR SUITE
+        // ============================================================
+
+        class EC2Sensor {
+            constructor() {
+                this.signals = {};
+                this.measurements = {};
+            }
+
+            async collectAllSignals() {
+                console.log('🔬 Collecting EC2 detection signals...');
+
+                // Run all sensors in parallel
+                const results = await Promise.allSettled([
+                    this.measureCPUJitter(),
+                    this.measureNetworkJitter(),
+                    this.measureGPUPerformance(),
+                    this.measureEventLoopLag(),
+                    this.measurePageFaultTiming(),
+                    this.measureAudioTiming(),
+                    this.measureWebGLExtensions(),
+                    this.measureNavigatorProperties(),
+                    this.measurePerformanceTiming(),
+                    this.measureMemoryAllocation()
+                ]);
+
+                // Aggregate results
+                this.signals = {
+                    cpuJitter: results[0].status === 'fulfilled' ? results[0].value : { error: true },
+                    networkJitter: results[1].status === 'fulfilled' ? results[1].value : { error: true },
+                    gpuTiming: results[2].status === 'fulfilled' ? results[2].value : { error: true },
+                    eventLoopLag: results[3].status === 'fulfilled' ? results[3].value : { error: true },
+                    pageFaultTiming: results[4].status === 'fulfilled' ? results[4].value : { error: true },
+                    audioTiming: results[5].status === 'fulfilled' ? results[5].value : { error: true },
+                    webglExtensions: results[6].status === 'fulfilled' ? results[6].value : { error: true },
+                    navigatorProps: results[7].status === 'fulfilled' ? results[7].value : { error: true },
+                    performanceTiming: results[8].status === 'fulfilled' ? results[8].value : { error: true },
+                    memoryAllocation: results[9].status === 'fulfilled' ? results[9].value : { error: true }
+                };
+
+                return this.signals;
+            }
+
+            // ============ SENSOR 1: CPU Jitter ============
+            measureCPUJitter() {
+                const times = [];
+                const iterations = 500;
+
+                for (let i = 0; i < iterations; i++) {
+                    const start = performance.now();
+
+                    let sum = 0;
+                    for (let j = 0; j < 8000; j++) {
+                        if (j % 3 === 0) {
+                            sum += Math.sin(j) * Math.cos(j);
+                        } else if (j % 7 === 0) {
+                            sum ^= (j * 0x9E3779B9) >>> 0;
+                        } else {
+                            sum += Math.sqrt(j) * Math.tan(j);
+                        }
+                    }
+
+                    times.push(performance.now() - start);
+                }
+
+                const mean = times.reduce((a, b) => a + b, 0) / times.length;
+                const variance = times.reduce((a, b) => a + (b - mean) ** 2, 0) / times.length;
+                const stdDev = Math.sqrt(variance);
+                const cv = stdDev / mean;
+
+                const sorted = [...times].sort((a, b) => a - b);
+                const q1 = sorted[Math.floor(sorted.length / 4)];
+                const q3 = sorted[Math.floor(3 * sorted.length / 4)];
+                const iqr = q3 - q1;
+
+                return {
+                    cv: cv,
+                    mean: mean,
+                    stdDev: stdDev,
+                    iqr: iqr,
+                    min: Math.min(...times),
+                    max: Math.max(...times),
+                    isAutomated: cv < 0.04
+                };
+            }
+
+            // ============ SENSOR 2: Network Jitter ============
+            async measureNetworkJitter() {
+                const times = [];
+                const urls = [
+                    'https://cdn.jsdelivr.net/npm/axios@1.6.0/package.json',
+                    'https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/package.json',
+                    'https://unpkg.com/vue@3.3.0/package.json'
+                ];
+
+                for (let i = 0; i < 20; i++) {
+                    const url = urls[i % urls.length] + '?cb=' + Math.random() + '&t=' + Date.now();
+                    try {
+                        const start = performance.now();
+                        const response = await fetch(url, {
+                            cache: 'no-store',
+                            mode: 'cors'
+                        });
+                        await response.text();
+                        times.push(performance.now() - start);
+                        await new Promise(r => setTimeout(r, Math.random() * 50));
+                    } catch (e) {
+                        times.push(9999);
+                    }
+                }
+
+                const mean = times.reduce((a, b) => a + b, 0) / times.length;
+                const variance = times.reduce((a, b) => a + (b - mean) ** 2, 0) / times.length;
+                const stdDev = Math.sqrt(variance);
+                const cv = stdDev / mean;
+                const timeouts = times.filter(t => t > 5000).length;
+
+                return {
+                    mean: mean,
+                    stdDev: stdDev,
+                    cv: cv,
+                    min: Math.min(...times),
+                    max: Math.max(...times),
+                    timeouts: timeouts,
+                    timeoutRate: timeouts / times.length,
+                    isDatacenter: cv < 0.2 && mean < 100
+                };
+            }
+
+            // ============ SENSOR 3: GPU Performance ============
+            measureGPUPerformance() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+                if (!gl) {
+                    return { hasGPU: false, timing: null, renderer: null };
+                }
+
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                const renderer = debugInfo ?
+                    gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) :
+                    'unknown';
+                const vendor = debugInfo ?
+                    gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) :
+                    'unknown';
+
+                const times = [];
+                for (let i = 0; i < 50; i++) {
+                    const start = performance.now();
+                    gl.clearColor(Math.random(), Math.random(), Math.random(), 1);
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                    gl.finish();
+                    times.push(performance.now() - start);
+                }
+
+                const mean = times.reduce((a, b) => a + b, 0) / times.length;
+                const variance = times.reduce((a, b) => a + (b - mean) ** 2, 0) / times.length;
+                const stdDev = Math.sqrt(variance);
+                const cv = stdDev / mean;
+
+                const isSoftwareRendering = renderer.includes('Google') ||
+                    renderer.includes('SwiftShader') ||
+                    renderer.includes('Mesa');
+
+                return {
+                    hasGPU: true,
+                    renderer: renderer,
+                    vendor: vendor,
+                    timing: { mean: mean, stdDev: stdDev, cv: cv },
+                    isSoftwareRendering: isSoftwareRendering,
+                    isEmulated: isSoftwareRendering || cv < 0.05
+                };
+            }
+
+            // ============ SENSOR 4: Event Loop Scheduling ============
+            measureEventLoopLag() {
+                const measurements = [];
+                const rafMeasurements = [];
+
+                for (let i = 0; i < 80; i++) {
+                    const start = performance.now();
+                    let resolved = false;
+
+                    Promise.resolve().then(() => {
+                        const end = performance.now();
+                        measurements.push(end - start);
+                        resolved = true;
+                    });
+
+                    // Wait for microtask
+                    const waitStart = performance.now();
+                    while (performance.now() - waitStart < 5) {
+                        if (resolved) break;
+                    }
+                    if (!resolved) measurements.push(5);
+                }
+
+                // RAF measurements (synchronous)
+                for (let i = 0; i < 30; i++) {
+                    const start = performance.now();
+                    // We can't wait for RAF synchronously, so we use a different approach
+                    // Just measure the time to request the frame
+                    requestAnimationFrame(() => {});
+                    // Measure how long it took to schedule
+                    rafMeasurements.push(performance.now() - start);
+                }
+
+                const microMean = measurements.reduce((a, b) => a + b, 0) / measurements.length;
+                const microVar = measurements.reduce((a, b) => a + (b - microMean) ** 2, 0) / measurements.length;
+                const microCV = Math.sqrt(microVar) / microMean;
+
+                const rafMean = rafMeasurements.reduce((a, b) => a + b, 0) / rafMeasurements.length;
+                const rafVar = rafMeasurements.reduce((a, b) => a + (b - rafMean) ** 2, 0) / rafMeasurements.length;
+                const rafCV = Math.sqrt(rafVar) / rafMean;
+
+                return {
+                    microtaskDelay: { mean: microMean, cv: microCV },
+                    rafDelay: { mean: rafMean, cv: rafCV },
+                    isHeadless: microCV < 0.1 && rafCV < 0.05
+                };
+            }
+
+            // ============ SENSOR 5: Page Fault Timing ============
+            measurePageFaultTiming() {
+                const times = [];
+
+                for (let i = 0; i < 30; i++) {
+                    const start = performance.now();
+
+                    const size = 5 * 1024 * 1024;
+                    const buffer = new Uint8Array(size);
+
+                    for (let j = 0; j < size; j += 4096) {
+                        buffer[j] = 1;
+                    }
+
+                    let sum = 0;
+                    for (let j = 0; j < size; j += 4096) {
+                        sum += buffer[j];
+                    }
+
+                    times.push(performance.now() - start);
+                }
+
+                const mean = times.reduce((a, b) => a + b, 0) / times.length;
+                const variance = times.reduce((a, b) => a + (b - mean) ** 2, 0) / times.length;
+                const stdDev = Math.sqrt(variance);
+                const cv = stdDev / mean;
+
+                return {
+                    mean: mean,
+                    stdDev: stdDev,
+                    cv: cv,
+                    isVM: mean > 4
+                };
+            }
+
+            // ============ SENSOR 6: Audio Timing ============
+            measureAudioTiming() {
+                try {
+                    const audioContext = new(window.AudioContext || window.webkitAudioContext)();
+                    const times = [];
+
+                    for (let i = 0; i < 15; i++) {
+                        const start = performance.now();
+                        const buffer = audioContext.createBuffer(1, 2048, 44100);
+                        const data = buffer.getChannelData(0);
+                        for (let j = 0; j < data.length; j++) {
+                            data[j] = Math.sin(j * 2 * Math.PI * 440 / 44100);
+                        }
+                        const source = audioContext.createBufferSource();
+                        source.buffer = buffer;
+                        source.connect(audioContext.destination);
+                        source.start();
+                        source.stop(0.05);
+                        times.push(performance.now() - start);
+                    }
+
+                    const mean = times.reduce((a, b) => a + b, 0) / times.length;
+                    const variance = times.reduce((a, b) => a + (b - mean) ** 2, 0) / times.length;
+                    const stdDev = Math.sqrt(variance);
+                    const cv = stdDev / mean;
+
+                    return {
+                        hasAudio: true,
+                        mean: mean,
+                        stdDev: stdDev,
+                        cv: cv,
+                        isHeadless: cv < 0.1
+                    };
+                } catch (e) {
+                    return {
+                        hasAudio: false,
+                        error: e.message,
+                        isHeadless: true
+                    };
+                }
+            }
+
+            // ============ SENSOR 7: WebGL Extensions ============
+            measureWebGLExtensions() {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl');
+
+                if (!gl) {
+                    return { extensions: [], count: 0, isHeadless: true };
+                }
+
+                const extensions = gl.getSupportedExtensions() || [];
+
+                const commonExtensions = [
+                    'WEBGL_debug_renderer_info',
+                    'WEBGL_debug_shaders',
+                    'WEBGL_lose_context',
+                    'WEBGL_depth_texture'
+                ];
+
+                const missingCommon = commonExtensions.filter(ext => !extensions.includes(ext));
+                const hasVendorExtensions = extensions.some(ext =>
+                    ext.includes('AMD') ||
+                    ext.includes('NVIDIA') ||
+                    ext.includes('INTEL') ||
+                    ext.includes('APPLE')
+                );
+
+                return {
+                    extensions: extensions,
+                    count: extensions.length,
+                    missingCommon: missingCommon,
+                    missingCount: missingCommon.length,
+                    hasVendorExtensions: hasVendorExtensions,
+                    isHeadless: !hasVendorExtensions || extensions.length < 15,
+                    extensionRichness: extensions.length
+                };
+            }
+
+            // ============ SENSOR 8: Navigator Properties ============
+            measureNavigatorProperties() {
+                const nav = navigator;
+
+                const hasWebdriver = !!nav.webdriver;
+
+                const automationProps = [
+                    'webdriver',
+                    'callPhantom',
+                    'phantom',
+                    '__driver_evaluate',
+                    '__webdriver_evaluate',
+                    '__selenium_evaluate',
+                    '__fxdriver_evaluate'
+                ];
+
+                const detectedProps = automationProps.filter(prop => prop in window);
+
+                const isHeadless = nav.plugins.length === 0 &&
+                    nav.mimeTypes.length === 0;
+
+                const hardwareConcurrency = nav.hardwareConcurrency || 'unknown';
+                const deviceMemory = nav.deviceMemory || 'unknown';
+                const platform = nav.platform || 'unknown';
+                const userAgent = nav.userAgent || 'unknown';
+
+                const isEC2Hardware = hardwareConcurrency <= 4;
+                const isEC2Memory = deviceMemory <= 16;
+
+                return {
+                    hasWebdriver: hasWebdriver,
+                    detectedAutomationProps: detectedProps,
+                    isHeadless: isHeadless,
+                    hardwareConcurrency: hardwareConcurrency,
+                    deviceMemory: deviceMemory,
+                    platform: platform,
+                    userAgent: userAgent,
+                    isAutomationSuspicious: hasWebdriver || detectedProps.length > 0,
+                    isEC2Hardware: isEC2Hardware,
+                    isEC2Memory: isEC2Memory
+                };
+            }
+
+            // ============ SENSOR 9: Performance Timing ============
+            measurePerformanceTiming() {
+                const timing = performance.timing || {};
+
+                const dns = timing.domainLookupEnd - timing.domainLookupStart;
+                const tcp = timing.connectEnd - timing.connectStart;
+                const request = timing.responseStart - timing.requestStart;
+                const response = timing.responseEnd - timing.responseStart;
+                const dom = timing.domComplete - timing.domLoading;
+                const load = timing.loadEventEnd - timing.navigationStart;
+
+                const isDatacenter = dns < 5 && tcp < 10;
+
+                return {
+                    dns: dns,
+                    tcp: tcp,
+                    request: request,
+                    response: response,
+                    dom: dom,
+                    load: load,
+                    isDatacenter: isDatacenter,
+                    networkSpeed: (dns + tcp + request + response)
+                };
+            }
+
+            // ============ SENSOR 10: Memory Allocation ============
+            measureMemoryAllocation() {
+                const times = [];
+
+                for (let i = 0; i < 50; i++) {
+                    const size = 1000 + Math.floor(Math.random() * 50000);
+                    const start = performance.now();
+                    const buffer = new ArrayBuffer(size);
+                    const view = new Uint8Array(buffer);
+                    view[0] = 1;
+                    view[view.length - 1] = 1;
+                    times.push(performance.now() - start);
+                }
+
+                const mean = times.reduce((a, b) => a + b, 0) / times.length;
+                const variance = times.reduce((a, b) => a + (b - mean) ** 2, 0) / times.length;
+                const stdDev = Math.sqrt(variance);
+                const cv = stdDev / mean;
+
+                return {
+                    mean: mean,
+                    stdDev: stdDev,
+                    cv: cv,
+                    isChromeAllocator: cv < 0.15
+                };
+            }
+
+            // ============ DETECTION ENGINE ============
+            detectEC2() {
+                const s = this.signals;
+                let score = 0;
+                const reasons = [];
+
+                // Rule 1: CPU jitter too consistent
+                if (s.cpuJitter && s.cpuJitter.cv < 0.04) {
+                    score += 30;
+                    reasons.push(`CPU jitter too consistent (CV: ${s.cpuJitter.cv.toFixed(4)})`);
+                }
+
+                // Rule 2: Network too fast and consistent
+                if (s.networkJitter && s.networkJitter.mean < 20 && s.networkJitter.cv < 0.2) {
+                    score += 25;
+                    reasons.push(`Network too fast/consistent (${s.networkJitter.mean.toFixed(1)}ms, CV: ${s.networkJitter.cv.toFixed(3)})`);
+                }
+
+                // Rule 3: Software rendering
+                if (s.gpuTiming && s.gpuTiming.isSoftwareRendering) {
+                    score += 20;
+                    reasons.push('Software rendering detected');
+                }
+
+                // Rule 4: Webdriver flag
+                if (s.navigatorProps && s.navigatorProps.hasWebdriver) {
+                    score += 20;
+                    reasons.push('navigator.webdriver flag present');
+                }
+
+                // Rule 5: Missing WebGL extensions
+                if (s.webglExtensions && s.webglExtensions.missingCount > 3) {
+                    score += 15;
+                    reasons.push(`${s.webglExtensions.missingCount} missing WebGL extensions`);
+                }
+
+                // Rule 6: 2-4 vCPUs (EC2 signature)
+                if (s.navigatorProps && s.navigatorProps.hardwareConcurrency <= 4) {
+                    score += 15;
+                    reasons.push(`EC2-like hardware: ${s.navigatorProps.hardwareConcurrency} cores`);
+                }
+
+                // Rule 7: 8-16GB RAM (EC2 signature)
+                if (s.navigatorProps && s.navigatorProps.deviceMemory <= 16) {
+                    score += 10;
+                    reasons.push(`EC2-like memory: ${s.navigatorProps.deviceMemory}GB`);
+                }
+
+                // Rule 8: No audio support
+                if (s.audioTiming && !s.audioTiming.hasAudio) {
+                    score += 15;
+                    reasons.push('No audio support');
+                }
+
+                // Rule 9: Event loop too perfect
+                if (s.eventLoopLag && s.eventLoopLag.rafDelay.cv < 0.01) {
+                    score += 20;
+                    reasons.push(`Event loop too perfect (RAF CV: ${s.eventLoopLag.rafDelay.cv.toFixed(4)})`);
+                }
+
+                // Rule 10: Datacenter network
+                if (s.performanceTiming && s.performanceTiming.isDatacenter) {
+                    score += 15;
+                    reasons.push('Datacenter network detected');
+                }
+
+                // Rule 11: VM page fault overhead
+                if (s.pageFaultTiming && s.pageFaultTiming.isVM) {
+                    score += 15;
+                    reasons.push(`VM detected (page fault: ${s.pageFaultTiming.mean.toFixed(2)}ms)`);
+                }
+
+                // Rule 12: Headless detection
+                if (s.navigatorProps && s.navigatorProps.isHeadless) {
+                    score += 10;
+                    reasons.push('Headless browser detected');
+                }
+
+                return {
+                    score: Math.min(score, 100),
+                    reasons: reasons,
+                    isBot: score > 60,
+                    confidence: Math.min(score, 100)
+                };
+            }
+
+            // ============ FORMAT OUTPUT ============
+            formatOutput() {
+                const detection = this.detectEC2();
+
+                const output = {
+                    environment: {
+                        detected: detection.isBot ? 'EC2/BOT' : 'GENUINE',
+                        confidence: detection.confidence,
+                        reasons: detection.reasons
+                    },
+                    signals: {
+                        cpuJitter: this.signals.cpuJitter,
+                        networkJitter: this.signals.networkJitter,
+                        gpuTiming: this.signals.gpuTiming,
+                        eventLoopLag: this.signals.eventLoopLag,
+                        pageFaultTiming: this.signals.pageFaultTiming,
+                        audioTiming: this.signals.audioTiming,
+                        webglExtensions: this.signals.webglExtensions,
+                        navigatorProps: this.signals.navigatorProps,
+                        performanceTiming: this.signals.performanceTiming,
+                        memoryAllocation: this.signals.memoryAllocation
+                    },
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent
+                };
+
+                return output;
+            }
+        }
+
+        // ============================================================
+        // RUN THE DETECTION
+        // ============================================================
+
+        async function runDetection() {
+            const sensor = new EC2Sensor();
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+
+            try {
+                await sensor.collectAllSignals();
+                const output = sensor.formatOutput();
+
+                loading.style.display = 'none';
+                results.classList.add('visible');
+
+                displayResults(output);
+
+                // Also log to console for terminal viewing
+                console.log('\n🔬 EC2 DETECTION RESULTS');
+                console.log('='.repeat(50));
+                console.log('Environment:', output.environment.detected);
+                console.log('Confidence:', output.environment.confidence + '%');
+                console.log('Reasons:', output.environment.reasons);
+                console.log('\nSignals:');
+                console.log(JSON.stringify(output.signals, null, 2));
+                console.log('\n' + '='.repeat(50));
+
+            } catch (error) {
+                loading.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                console.error('Detection error:', error);
+            }
+        }
+
+        function displayResults(output) {
+            const signals = output.signals;
+            const detection = output.environment;
+            const container = document.getElementById('signals');
+
+            // Score display
+            const scoreEl = document.getElementById('scoreDisplay');
+            const score = detection.confidence;
+            scoreEl.textContent = `${score}%`;
+            scoreEl.className = 'score ' + (score > 60 ? 'bot' : score > 30 ? 'suspicious' : 'human');
+
+            // Environment badge
+            const envName = document.getElementById('envName');
+            const envLabel = document.getElementById('environmentLabel');
+            const badgeClass = score > 60 ? 'ec2' : score > 30 ? 'unknown' : 'laptop';
+            const badgeText = score > 60 ? '🚨 EC2/BOT' : score > 30 ? '⚠️ Suspicious' : '✅ Genuine';
+            envName.innerHTML = `<span class="env-badge ${badgeClass}">${badgeText}</span>`;
+
+            let html = '';
+
+            // Helper to format numbers
+            const fmt = (v) => typeof v === 'number' ? v.toFixed(4) : v;
+
+            // Helper to create signal row
+            const signalRow = (name, value, threshold, invert = false) => {
+                const isBad = threshold !== undefined ?
+                    (invert ? value > threshold : value < threshold) :
+                    false;
+                const colorClass = threshold !== undefined ?
+                    (isBad ? 'bad' : 'good') :
+                    '';
+
+                return `<div class="signal-group ${isBad ? 'bot' : 'human'}">
+                    <span class="signal-name">${name}</span>
+                    <span class="signal-value ${colorClass}">${typeof value === 'number' ? value.toFixed(4) : value}</span>
+                    ${threshold !== undefined ? `<span style="color:#666;font-size:12px;margin-left:10px;">(threshold: ${threshold})</span>` : ''}
+                </div>`;
+            };
+
+            // CPU Jitter
+            if (signals.cpuJitter && !signals.cpuJitter.error) {
+                html += signalRow('CPU Jitter (CV)', signals.cpuJitter.cv, 0.04);
+                html += signalRow('  └ Mean', signals.cpuJitter.mean);
+                html += signalRow('  └ Std Dev', signals.cpuJitter.stdDev);
+                html += signalRow('  └ Range', `${signals.cpuJitter.min.toFixed(2)} - ${signals.cpuJitter.max.toFixed(2)}ms`);
+            }
+
+            // Network Jitter
+            if (signals.networkJitter && !signals.networkJitter.error) {
+                html += signalRow('Network Jitter (CV)', signals.networkJitter.cv, 0.2);
+                html += signalRow('  └ Mean', `${signals.networkJitter.mean.toFixed(1)}ms`);
+                html += signalRow('  └ Timeouts', `${signals.networkJitter.timeouts}/${signals.networkJitter.timeouts + 20}`);
+                html += signalRow('  └ Datacenter?', signals.networkJitter.isDatacenter ? '✅ YES' : '❌ NO');
+            }
+
+            // GPU
+            if (signals.gpuTiming && !signals.gpuTiming.error) {
+                html += signalRow('GPU Renderer', signals.gpuTiming.renderer || 'unknown');
+                html += signalRow('  └ Software Rendering', signals.gpuTiming.isSoftwareRendering ? '✅ YES' : '❌ NO');
+                if (signals.gpuTiming.timing) {
+                    html += signalRow('  └ Timing (CV)', signals.gpuTiming.timing.cv, 0.05);
+                }
+            }
+
+            // Event Loop
+            if (signals.eventLoopLag && !signals.eventLoopLag.error) {
+                html += signalRow('Event Loop (RAF CV)', signals.eventLoopLag.rafDelay.cv, 0.01);
+                html += signalRow('  └ Microtask CV', signals.eventLoopLag.microtaskDelay.cv);
+                html += signalRow('  └ Headless?', signals.eventLoopLag.isHeadless ? '✅ YES' : '❌ NO');
+            }
+
+            // Page Fault
+            if (signals.pageFaultTiming && !signals.pageFaultTiming.error) {
+                html += signalRow('Page Fault Time', `${signals.pageFaultTiming.mean.toFixed(2)}ms`, 4);
+                html += signalRow('  └ CV', signals.pageFaultTiming.cv);
+                html += signalRow('  └ VM Detected?', signals.pageFaultTiming.isVM ? '✅ YES' : '❌ NO');
+            }
+
+            // Audio
+            if (signals.audioTiming && !signals.audioTiming.error) {
+                html += signalRow('Audio Support', signals.audioTiming.hasAudio ? '✅ YES' : '❌ NO');
+                if (signals.audioTiming.hasAudio) {
+                    html += signalRow('  └ Audio CV', signals.audioTiming.cv);
+                }
+            }
+
+            // WebGL Extensions
+            if (signals.webglExtensions && !signals.webglExtensions.error) {
+                html += signalRow('WebGL Extensions', `${signals.webglExtensions.count} extensions`);
+                html += signalRow('  └ Missing Common', `${signals.webglExtensions.missingCount}`);
+                html += signalRow('  └ Vendor Extensions', signals.webglExtensions.hasVendorExtensions ? '✅ YES' : '❌ NO');
+                html += signalRow('  └ Headless?', signals.webglExtensions.isHeadless ? '✅ YES' : '❌ NO');
+            }
+
+            // Navigator
+            if (signals.navigatorProps && !signals.navigatorProps.error) {
+                html += signalRow('navigator.webdriver', signals.navigatorProps.hasWebdriver ? '✅ YES' : '❌ NO');
+                html += signalRow('  └ Hardware Concurrency', signals.navigatorProps.hardwareConcurrency);
+                html += signalRow('  └ Device Memory', `${signals.navigatorProps.deviceMemory}GB`);
+                html += signalRow('  └ Platform', signals.navigatorProps.platform);
+            }
+
+            // Performance
+            if (signals.performanceTiming && !signals.performanceTiming.error) {
+                html += signalRow('Network Speed', `${signals.performanceTiming.networkSpeed.toFixed(1)}ms`);
+                html += signalRow('  └ Datacenter?', signals.performanceTiming.isDatacenter ? '✅ YES' : '❌ NO');
+                html += signalRow('  └ DNS', `${signals.performanceTiming.dns.toFixed(1)}ms`);
+                html += signalRow('  └ TCP', `${signals.performanceTiming.tcp.toFixed(1)}ms`);
+            }
+
+            // Memory Allocation
+            if (signals.memoryAllocation && !signals.memoryAllocation.error) {
+                html += signalRow('Memory Allocator CV', signals.memoryAllocation.cv, 0.15);
+                html += signalRow('  └ Chrome Allocator?', signals.memoryAllocation.isChromeAllocator ? '✅ YES' : '❌ NO');
+            }
+
+            container.innerHTML = html;
+
+            // Timestamp
+            document.getElementById('timestamp').textContent = new Date().toLocaleString();
+
+            // Also show reasons
+            const statusEl = document.getElementById('status');
+            if (detection.reasons.length > 0) {
+                statusEl.innerHTML += `<div style="margin-top:10px;padding:10px;background:#0d1520;border-radius:5px;border-left:3px solid #ffaa00;">
+                    <strong style="color:#ffaa00;">⚠️ Detection Reasons:</strong>
+                    <ul style="margin:10px 0 0 20px;color:#ddd;">
+                        ${detection.reasons.map(r => `<li>${r}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
+        }
+
+        // Run detection immediately
+        runDetection();
+    </script>
+</body>
+</html>
