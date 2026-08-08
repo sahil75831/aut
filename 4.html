@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Ambient Light Sensor</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #0b1120;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 28px;
+            padding: 24px 20px;
+            max-width: 480px;
+            width: 100%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        h1 {
+            color: #fff;
+            font-weight: 300;
+            font-size: 1.4rem;
+            margin: 0 0 4px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 small {
+            font-size: 0.8rem;
+            color: #7a8aaa;
+            font-weight: 400;
+        }
+
+        .sub {
+            color: #8899bb;
+            font-size: 0.9rem;
+            border-left: 3px solid #3b5b9b;
+            padding-left: 14px;
+            margin-bottom: 20px;
+        }
+
+        /* ---- Main display ---- */
+        .light-meter {
+            background: rgba(0, 0, 0, 0.35);
+            border-radius: 18px;
+            padding: 20px 18px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            margin-bottom: 16px;
+        }
+
+        .light-value {
+            font-size: 3.2rem;
+            font-weight: 300;
+            color: #b0c8f0;
+            font-family: 'JetBrains Mono', monospace;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .light-value .unit {
+            font-size: 1.2rem;
+            color: #7a8aaa;
+            margin-left: 6px;
+        }
+
+        .light-bar-wrap {
+            margin: 16px 0 8px 0;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .light-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3b7bdd, #f7b731);
+            border-radius: 20px;
+            transition: width 0.15s ease;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            color: #6a8abb;
+            font-size: 0.75rem;
+            margin-top: 8px;
+        }
+
+        .status-row .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #3b5b8b;
+            margin-right: 6px;
+            transition: background 0.2s;
+        }
+
+        .status-row .dot.active {
+            background: #4ade80;
+            box-shadow: 0 0 10px rgba(74, 222, 128, 0.3);
+        }
+
+        /* ---- History array ---- */
+        .history-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 14px;
+            padding: 12px 14px;
+            max-height: 140px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            line-height: 1.6;
+            color: #8fcbff;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            margin-bottom: 16px;
+        }
+
+        .history-box .empty {
+            color: #44556a;
+            font-style: italic;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .history-box::-webkit-scrollbar {
+            width: 3px;
+        }
+        .history-box::-webkit-scrollbar-thumb {
+            background: #3b5b8b;
+            border-radius: 8px;
+        }
+
+        /* ---- Controls ---- */
+        .controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #b0c8f0;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            touch-action: manipulation;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b7bdd, #7a5cdb);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #4a8bed, #8a6ceb);
+        }
+
+        .btn-danger {
+            border-color: rgba(255, 80, 80, 0.2);
+            color: #ff7a7a;
+        }
+
+        .btn-danger:hover {
+            background: rgba(255, 80, 80, 0.08);
+        }
+
+        .badge {
+            color: #6a8abb;
+            font-size: 0.7rem;
+            margin-left: auto;
+            align-self: center;
+        }
+
+        .permission-hint {
+            color: #ffaa66;
+            font-size: 0.8rem;
+            background: rgba(255, 170, 102, 0.08);
+            border-radius: 12px;
+            padding: 10px 14px;
+            border-left: 3px solid #ffaa66;
+            margin-bottom: 14px;
+            display: none;
+        }
+
+        .permission-hint.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>
+        <span>💡 Light Sensor</span>
+        <small>ambient lux</small>
+    </h1>
+    <div class="sub">Continuous light level readings from your device’s ambient light sensor.</div>
+
+    <!-- Permission hint (shown if permission is needed) -->
+    <div class="permission-hint" id="permissionHint">
+        🔒 Tap <strong>“Allow”</strong> when prompted to access the light sensor.
+    </div>
+
+    <!-- Main meter -->
+    <div class="light-meter">
+        <div class="light-value">
+            <span id="luxDisplay">--</span><span class="unit">lux</span>
+        </div>
+        <div class="light-bar-wrap">
+            <div class="light-bar-fill" id="lightBarFill" style="width:0%;"></div>
+        </div>
+        <div class="status-row">
+            <span>
+                <span class="dot" id="sensorDot"></span>
+                <span id="sensorStatus">idle</span>
+            </span>
+            <span id="lastUpdate">–</span>
+        </div>
+    </div>
+
+    <!-- History array -->
+    <div class="history-box" id="historyBox">
+        <span class="empty">⏳ waiting for light data…</span>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <button class="btn btn-primary" id="startBtn">▶ Start</button>
+        <button class="btn btn-danger" id="clearBtn">🗑️ Clear</button>
+        <button class="btn" id="copyBtn">📋 Copy</button>
+        <span class="badge" id="countBadge">0 readings</span>
+    </div>
+</div>
+
+<script>
+    (function() {
+        'use strict';
+
+        // DOM refs
+        const luxDisplay = document.getElementById('luxDisplay');
+        const lightBarFill = document.getElementById('lightBarFill');
+        const sensorDot = document.getElementById('sensorDot');
+        const sensorStatus = document.getElementById('sensorStatus');
+        const lastUpdate = document.getElementById('lastUpdate');
+        const historyBox = document.getElementById('historyBox');
+        const startBtn = document.getElementById('startBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const countBadge = document.getElementById('countBadge');
+        const permissionHint = document.getElementById('permissionHint');
+
+        // State
+        let sensor = null;
+        let isRunning = false;
+        let luxHistory = [];
+        let maxLux = 1000; // for bar scaling
+
+        // ----- Helper: format timestamp -----
+        function getTimeStr() {
+            const now = new Date();
+            return now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        // ----- Render history -----
+        function renderHistory() {
+            if (luxHistory.length === 0) {
+                historyBox.innerHTML = `<span class="empty">⏳ waiting for light data…</span>`;
+                countBadge.textContent = '0 readings';
+                return;
+            }
+            const parts = luxHistory.map((entry) => {
+                const lux = Math.round(entry.lux);
+                const time = entry.time;
+                return `<span style="color:#8fcbff;">${lux}</span><span style="color:#44556a;">lux</span><span style="color:#5a6a8a; margin:0 4px;">@</span><span style="color:#6a8abb;">${time}</span>`;
+            });
+            historyBox.innerHTML = `<span style="color:#6a8abb;">[</span> ${parts.join('<span style="color:#44556a;">, </span>')} <span style="color:#6a8abb;">]</span>`;
+            historyBox.scrollTop = historyBox.scrollHeight;
+            countBadge.textContent = `${luxHistory.length} readings`;
+        }
+
+        // ----- Add new reading -----
+        function addReading(lux) {
+            const now = getTimeStr();
+            luxHistory.push({ lux, time: now });
+
+            // Update display
+            luxDisplay.textContent = Math.round(lux);
+            // Scale bar (cap at 2000 lux for visual)
+            const percent = Math.min((lux / 2000) * 100, 100);
+            lightBarFill.style.width = `${percent}%`;
+
+            // Track max for bar (optional, but we keep dynamic)
+            if (lux > maxLux) maxLux = lux;
+
+            // Status
+            sensorDot.classList.add('active');
+            sensorStatus.textContent = 'reading';
+            lastUpdate.textContent = now;
+
+            renderHistory();
+        }
+
+        // ----- Start sensor -----
+        function startSensor() {
+            if (isRunning) return;
+
+            // Check if API is supported
+            if (!('AmbientLightSensor' in window)) {
+                alert('❌ Ambient Light Sensor API is not supported on this device/browser.');
+                return;
+            }
+
+            // Create sensor with 60 Hz frequency (max)
+            sensor = new AmbientLightSensor({ frequency: 60 });
+
+            // Event: reading
+            sensor.addEventListener('reading', () => {
+                const lux = sensor.illuminance || 0;
+                if (lux !== undefined && lux !== null) {
+                    addReading(lux);
+                }
+            });
+
+            // Event: error
+            sensor.addEventListener('error', (err) => {
+                console.error('Sensor error:', err);
+                sensorStatus.textContent = 'error';
+                sensorDot.classList.remove('active');
+                // If permission denied, show hint
+                if (err.error && err.error.name === 'NotAllowedError') {
+                    permissionHint.classList.add('show');
+                } else {
+                    alert(`Sensor error: ${err.error?.message || 'Unknown'}`);
+                }
+                stopSensor();
+            });
+
+            // Start
+            sensor.start()
+                .then(() => {
+                    isRunning = true;
+                    sensorStatus.textContent = 'running';
+                    sensorDot.classList.add('active');
+                    permissionHint.classList.remove('show');
+                    startBtn.textContent = '⏹️ Stop';
+                })
+                .catch((err) => {
+                    console.error('Start error:', err);
+                    if (err.name === 'NotAllowedError') {
+                        permissionHint.classList.add('show');
+                        sensorStatus.textContent = 'permission needed';
+                    } else {
+                        alert(`Failed to start sensor: ${err.message}`);
+                    }
+                });
+        }
+
+        // ----- Stop sensor -----
+        function stopSensor() {
+            if (sensor) {
+                try {
+                    sensor.stop();
+                } catch (e) {}
+                sensor.removeEventListener('reading', addReading);
+                sensor = null;
+            }
+            isRunning = false;
+            sensorDot.classList.remove('active');
+            sensorStatus.textContent = 'stopped';
+            startBtn.textContent = '▶ Start';
+        }
+
+        // ----- Clear history -----
+        function clearHistory() {
+            luxHistory = [];
+            maxLux = 1000;
+            luxDisplay.textContent = '--';
+            lightBarFill.style.width = '0%';
+            lastUpdate.textContent = '–';
+            renderHistory();
+            sensorDot.classList.remove('active');
+            sensorStatus.textContent = isRunning ? 'running' : 'idle';
+        }
+
+        // ----- Copy to clipboard -----
+        function copyHistory() {
+            if (luxHistory.length === 0) {
+                alert('No data to copy.');
+                return;
+            }
+            const text = luxHistory.map(e => `${Math.round(e.lux)} lux @ ${e.time}`).join('\n');
+            navigator.clipboard?.writeText(text)
+                .then(() => alert('✅ Copied!'))
+                .catch(() => {
+                    // Fallback
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    alert('✅ Copied!');
+                });
+        }
+
+        // ----- Toggle start/stop -----
+        function toggleStart() {
+            if (isRunning) {
+                stopSensor();
+            } else {
+                startSensor();
+            }
+        }
+
+        // ----- Init -----
+        function init() {
+            // If permission is already granted, hide hint
+            if (navigator.permissions) {
+                navigator.permissions.query({ name: 'ambient-light-sensor' })
+                    .then(result => {
+                        if (result.state === 'granted') {
+                            permissionHint.classList.remove('show');
+                        } else if (result.state === 'prompt') {
+                            permissionHint.classList.add('show');
+                        }
+                    })
+                    .catch(() => {});
+            }
+
+            // Event listeners
+            startBtn.addEventListener('click', toggleStart);
+            clearBtn.addEventListener('click', clearHistory);
+            copyBtn.addEventListener('click', copyHistory);
+
+            // Initial state
+            renderHistory();
+            sensorDot.classList.remove('active');
+            sensorStatus.textContent = 'idle';
+
+            console.log('✅ Ambient Light Sensor ready. Click Start to begin.');
+        }
+
+        init();
+    })();
+</script>
+</body>
+</html>
