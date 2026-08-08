@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tilt Stream Recorder</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+      background: linear-gradient(145deg, #0b1120 0%, #1a2332 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 32px;
+      padding: 30px 28px;
+      width: 100%;
+      max-width: 680px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+    }
+
+    h1 {
+      color: #fff;
+      font-weight: 300;
+      font-size: 1.6rem;
+      margin: 0 0 6px 0;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h1 small {
+      font-size: 0.9rem;
+      font-weight: 400;
+      color: #8899bb;
+      margin-left: auto;
+    }
+
+    .sub {
+      color: #7a8aaa;
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+      border-left: 3px solid #3b5b9b;
+      padding-left: 14px;
+    }
+
+    .tracker-row {
+      display: flex;
+      gap: 32px;
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+
+    /* -------- THUMB TRACK (left) -------- */
+    .track-wrapper {
+      flex: 0 0 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 0;
+    }
+
+    .track-container {
+      position: relative;
+      width: 48px;
+      height: 320px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 40px;
+      box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      touch-action: none;
+    }
+
+    .track-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 50%;
+      background: linear-gradient(0deg, #3b7bdd, #7a5cdb);
+      border-radius: 40px;
+      transition: height 0.08s ease;
+      pointer-events: none;
+      box-shadow: 0 0 20px rgba(59, 123, 221, 0.25);
+    }
+
+    .thumb {
+      position: absolute;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 64px;
+      height: 64px;
+      background: radial-gradient(circle at 30% 30%, #eef3ff, #b0c8f0);
+      border-radius: 50%;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(255, 255, 255, 0.1);
+      cursor: grab;
+      touch-action: none;
+      transition: box-shadow 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #1a2332;
+      font-weight: 600;
+      will-change: transform;
+      user-select: none;
+    }
+
+    .thumb:active {
+      cursor: grabbing;
+      box-shadow: 0 8px 32px rgba(59, 123, 221, 0.5), 0 0 0 3px rgba(255, 255, 255, 0.2);
+    }
+
+    .thumb-label {
+      color: #99aacd;
+      font-size: 0.7rem;
+      margin-top: 12px;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    /* -------- ARRAY DISPLAY (right) -------- */
+    .stream-panel {
+      flex: 1;
+      min-width: 200px;
+      background: rgba(0, 0, 0, 0.35);
+      border-radius: 20px;
+      padding: 18px 20px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stream-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .stream-header span {
+      color: #7a8aaa;
+      font-size: 0.8rem;
+      letter-spacing: 0.3px;
+    }
+
+    .badge {
+      background: rgba(59, 123, 221, 0.2);
+      color: #7aadff;
+      padding: 2px 14px;
+      border-radius: 40px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .array-container {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 14px;
+      padding: 14px 16px;
+      min-height: 220px;
+      max-height: 260px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: #c8d8f0;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      transition: border-color 0.2s;
+      word-break: break-all;
+    }
+
+    .array-container:focus-within {
+      border-color: rgba(59, 123, 221, 0.3);
+    }
+
+    .array-container .bracket {
+      color: #6a8abb;
+    }
+
+    .array-container .value {
+      color: #8fcbff;
+    }
+
+    .array-container .sep {
+      color: #44556a;
+    }
+
+    .array-container .empty-state {
+      color: #44556a;
+      font-style: italic;
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 0.9rem;
+    }
+
+    .array-container::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .array-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .array-container::-webkit-scrollbar-thumb {
+      background: #3b5b8b;
+      border-radius: 8px;
+    }
+
+    /* -------- CONTROLS -------- */
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #b0c8f0;
+      padding: 10px 22px;
+      border-radius: 40px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      backdrop-filter: blur(4px);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      touch-action: manipulation;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.10);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #3b7bdd, #7a5cdb);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 4px 16px rgba(59, 123, 221, 0.25);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 24px rgba(59, 123, 221, 0.4);
+      background: linear-gradient(135deg, #4a8bed, #8a6ceb);
+    }
+
+    .btn-danger {
+      border-color: rgba(255, 70, 70, 0.2);
+      color: #ff7a7a;
+    }
+
+    .btn-danger:hover {
+      background: rgba(255, 70, 70, 0.08);
+      border-color: rgba(255, 70, 70, 0.3);
+    }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+      margin-left: auto;
+      color: #6a8abb;
+      font-size: 0.75rem;
+      align-items: center;
+    }
+
+    .stats span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stats .num {
+      color: #c8d8f0;
+      font-weight: 600;
+      min-width: 24px;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+      background: #3b5b8b;
+      transition: background 0.2s;
+    }
+
+    .status-dot.active {
+      background: #4ade80;
+      box-shadow: 0 0 12px rgba(74, 222, 128, 0.3);
+    }
+
+    @media (max-width: 540px) {
+      .card {
+        padding: 18px 14px;
+      }
+      .tracker-row {
+        flex-direction: column;
+        align-items: center;
+      }
+      .track-wrapper {
+        flex: 0 0 auto;
+        width: 100%;
+        flex-direction: row;
+        justify-content: center;
+        gap: 20px;
+      }
+      .track-container {
+        height: 160px;
+        width: 40px;
+      }
+      .thumb {
+        width: 48px;
+        height: 48px;
+        font-size: 16px;
+      }
+      .stream-panel {
+        width: 100%;
+      }
+      .array-container {
+        min-height: 120px;
+        max-height: 180px;
+        font-size: 0.75rem;
+      }
+      .controls {
+        flex-wrap: wrap;
+      }
+      .stats {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>
+    <span>📊 Tilt Stream</span>
+    <small>swipe · record · verify</small>
+  </h1>
+  <div class="sub">Drag the thumb to generate a stream of tilt values — displayed live as an array.</div>
+
+  <div class="tracker-row">
+    <!-- LEFT: Thumb Tracker -->
+    <div class="track-wrapper">
+      <div class="track-container" id="trackContainer">
+        <div class="track-fill" id="trackFill" style="height: 50%;"></div>
+        <div class="thumb" id="thumb" style="top: 50%;">
+          <span>↕</span>
+        </div>
+      </div>
+      <div class="thumb-label" id="valueLabel">0°</div>
+    </div>
+
+    <!-- RIGHT: Array Display -->
+    <div class="stream-panel">
+      <div class="stream-header">
+        <span>📋 tiltStream</span>
+        <span class="badge" id="countBadge">0 values</span>
+      </div>
+      <div class="array-container" id="arrayContainer">
+        <span class="empty-state">⏳ Drag the thumb to start recording</span>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-primary" id="clearBtn">🗑️ Clear</button>
+        <button class="btn" id="copyBtn">📋 Copy</button>
+        <div class="stats">
+          <span>📐 <span class="num" id="minVal">0</span>°</span>
+          <span>📈 <span class="num" id="maxVal">0</span>°</span>
+          <span><span class="status-dot" id="statusDot"></span> <span id="statusText">idle</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    'use strict';
+
+    // ----- DOM refs -----
+    const trackContainer = document.getElementById('trackContainer');
+    const thumb = document.getElementById('thumb');
+    const trackFill = document.getElementById('trackFill');
+    const valueLabel = document.getElementById('valueLabel');
+    const arrayContainer = document.getElementById('arrayContainer');
+    const countBadge = document.getElementById('countBadge');
+    const minValEl = document.getElementById('minVal');
+    const maxValEl = document.getElementById('maxVal');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const clearBtn = document.getElementById('clearBtn');
+    const copyBtn = document.getElementById('copyBtn');
+
+    // ----- State -----
+    const tiltStream = [];          // stores recorded tilt values (degrees)
+    let isDragging = false;
+    let currentTilt = 0;            // -90 … +90
+    let minTilt = 90;
+    let maxTilt = -90;
+
+    // ----- Helpers -----
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function mapRange(value, inMin, inMax, outMin, outMax) {
+      return outMin + ((value - inMin) / (inMax - inMin)) * (outMax - outMin);
+    }
+
+    // ----- Update UI with current stream -----
+    function renderStream() {
+      // Build array display string
+      if (tiltStream.length === 0) {
+        arrayContainer.innerHTML = `<span class="empty-state">⏳ Drag the thumb to start recording</span>`;
+        countBadge.textContent = '0 values';
+        minValEl.textContent = '0';
+        maxValEl.textContent = '0';
+        return;
+      }
+
+      // Format: [12.3, -5.1, 8.7, …]
+      const parts = tiltStream.map((v) => {
+        const rounded = Math.round(v * 10) / 10;
+        return `<span class="value">${rounded}</span>`;
+      });
+      const html = `<span class="bracket">[</span> ${parts.join('<span class="sep">, </span>')} <span class="bracket">]</span>`;
+      arrayContainer.innerHTML = html;
+
+      // Scroll to bottom to show latest
+      arrayContainer.scrollTop = arrayContainer.scrollHeight;
+
+      // Update count badge
+      countBadge.textContent = `${tiltStream.length} values`;
+
+      // Update min/max
+      minTilt = Math.min(...tiltStream);
+      maxTilt = Math.max(...tiltStream);
+      minValEl.textContent = Math.round(minTilt * 10) / 10;
+      maxValEl.textContent = Math.round(maxTilt * 10) / 10;
+
+      // Update status dot
+      statusDot.classList.add('active');
+      statusText.textContent = 'recording';
+    }
+
+    // ----- Record a new tilt value -----
+    function recordTilt(value) {
+      const clamped = clamp(Math.round(value * 10) / 10, -90, 90);
+      tiltStream.push(clamped);
+      renderStream();
+    }
+
+    // ----- Update thumb position and current tilt -----
+    function updateThumb(clientY) {
+      const rect = trackContainer.getBoundingClientRect();
+      const trackHeight = rect.height;
+      const relativeY = clamp((clientY - rect.top) / trackHeight, 0, 1);
+      const inverted = 1 - relativeY; // 0 = bottom, 1 = top
+      const percent = inverted * 100;
+
+      // Map percent (0–100) to tilt angle (-90 … +90)
+      const tilt = mapRange(percent, 0, 100, -90, 90);
+      currentTilt = Math.round(tilt * 10) / 10;
+
+      // Move thumb
+      thumb.style.top = `${relativeY * 100}%`;
+      trackFill.style.height = `${percent}%`;
+      valueLabel.textContent = `${currentTilt}°`;
+
+      // If dragging, record the value
+      if (isDragging) {
+        recordTilt(currentTilt);
+      }
+    }
+
+    // ----- Start dragging -----
+    function startDrag(clientY) {
+      isDragging = true;
+      statusDot.classList.add('active');
+      statusText.textContent = 'recording';
+      thumb.style.cursor = 'grabbing';
+      updateThumb(clientY);
+    }
+
+    // ----- Stop dragging -----
+    function stopDrag() {
+      if (isDragging) {
+        isDragging = false;
+        thumb.style.cursor = 'grab';
+        if (tiltStream.length > 0) {
+          statusText.textContent = 'paused';
+        } else {
+          statusDot.classList.remove('active');
+          statusText.textContent = 'idle';
+        }
+      }
+    }
+
+    // ----- Clear stream -----
+    function clearStream() {
+      tiltStream.length = 0;
+      minTilt = 90;
+      maxTilt = -90;
+      renderStream();
+      statusDot.classList.remove('active');
+      statusText.textContent = 'idle';
+      // Reset thumb to middle
+      thumb.style.top = '50%';
+      trackFill.style.height = '50%';
+      currentTilt = 0;
+      valueLabel.textContent = '0°';
+    }
+
+    // ----- Copy to clipboard -----
+    function copyStream() {
+      if (tiltStream.length === 0) {
+        alert('Nothing to copy — stream is empty.');
+        return;
+      }
+      const text = `[${tiltStream.map(v => Math.round(v * 10) / 10).join(', ')}]`;
+      navigator.clipboard?.writeText(text).then(() => {
+        const orig = copyBtn.textContent;
+        copyBtn.textContent = '✅ Copied!';
+        setTimeout(() => { copyBtn.textContent = orig; }, 2000);
+      }).catch(() => {
+        // fallback
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        const orig = copyBtn.textContent;
+        copyBtn.textContent = '✅ Copied!';
+        setTimeout(() => { copyBtn.textContent = orig; }, 2000);
+      });
+    }
+
+    // ----- Event listeners (mouse) -----
+    function onMouseDown(e) {
+      e.preventDefault();
+      startDrag(e.clientY);
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    }
+
+    function onMouseMove(e) {
+      if (!isDragging) return;
+      e.preventDefault();
+      updateThumb(e.clientY);
+    }
+
+    function onMouseUp(e) {
+      stopDrag();
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    }
+
+    // ----- Event listeners (touch) -----
+    function onTouchStart(e) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      if (touch) {
+        startDrag(touch.clientY);
+        window.addEventListener('touchmove', onTouchMove, { passive: false });
+        window.addEventListener('touchend', onTouchEnd, { passive: false });
+        window.addEventListener('touchcancel', onTouchEnd, { passive: false });
+      }
+    }
+
+    function onTouchMove(e) {
+      if (!isDragging) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      if (touch) {
+        updateThumb(touch.clientY);
+      }
+    }
+
+    function onTouchEnd(e) {
+      stopDrag();
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchcancel', onTouchEnd);
+    }
+
+    // ----- Init -----
+    function init() {
+      // Attach events to thumb + track
+      thumb.addEventListener('mousedown', onMouseDown);
+      trackContainer.addEventListener('mousedown', (e) => {
+        // Allow clicking on the track to jump
+        if (!isDragging) {
+          startDrag(e.clientY);
+        }
+      });
+
+      thumb.addEventListener('touchstart', onTouchStart, { passive: false });
+      trackContainer.addEventListener('touchstart', (e) => {
+        if (!isDragging) {
+          const touch = e.touches[0];
+          if (touch) {
+            startDrag(touch.clientY);
+          }
+        }
+      }, { passive: false });
+
+      // Clear button
+      clearBtn.addEventListener('click', clearStream);
+
+      // Copy button
+      copyBtn.addEventListener('click', copyStream);
+
+      // Set initial state
+      clearStream();
+      statusDot.classList.remove('active');
+      statusText.textContent = 'idle';
+
+      console.log('✅ Tilt Stream recorder ready — drag the thumb to generate a tilt array.');
+    }
+
+    init();
+  })();
+</script>
+
+</body>
+</html>
