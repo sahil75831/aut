@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-Time Gravity Sensor</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 1.25rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .axis-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .axis-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      padding: 12px 16px;
+      border-radius: 8px;
+    }
+
+    .label {
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+
+    .label.x { color: #f43f5e; }
+    .label.y { color: #10b981; }
+    .label.z { color: #3b82f6; }
+
+    .value {
+      font-family: monospace;
+      font-size: 1.3rem;
+    }
+
+    #status {
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: #334155;
+      text-align: center;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 8px;
+      background: #3b82f6;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #2563eb;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Gravity Sensor</h2>
+    
+    <div class="axis-container">
+      <div class="axis-row">
+        <span class="label x">X Axis</span>
+        <span id="val-x" class="value">0.00</span>
+      </div>
+      <div class="axis-row">
+        <span class="label y">Y Axis</span>
+        <span id="val-y" class="value">0.00</span>
+      </div>
+      <div class="axis-row">
+        <span class="label z">Z Axis</span>
+        <span id="val-z" class="value">0.00</span>
+      </div>
+    </div>
+
+    <div id="status">Initializing...</div>
+    <button id="permission-btn" style="display: none;" onclick="requestIOSPermission()">Enable Sensor (iOS)</button>
+  </div>
+
+  <script>
+    const elX = document.getElementById('val-x');
+    const elY = document.getElementById('val-y');
+    const elZ = document.getElementById('val-z');
+    const elStatus = document.getElementById('status');
+    const btnPermission = document.getElementById('permission-btn');
+
+    function updateDisplay(x, y, z) {
+      elX.textContent = (x || 0).toFixed(2);
+      elY.textContent = (y || 0).toFixed(2);
+      elZ.textContent = (z || 0).toFixed(2);
+    }
+
+    // 1. Try Generic Sensor API
+    if ('GravitySensor' in window) {
+      try {
+        const sensor = new GravitySensor({ frequency: 60 });
+        
+        sensor.addEventListener('reading', () => {
+          updateDisplay(sensor.x, sensor.y, sensor.z);
+          elStatus.textContent = 'Status: Reading from GravitySensor API';
+          elStatus.style.background = '#065f46';
+        });
+
+        sensor.addEventListener('error', (event) => {
+          if (event.error.name === 'NotReadableError') {
+            elStatus.textContent = 'Error: No hardware sensor detected. Fallback ready.';
+            elStatus.style.background = '#991b1b';
+            useDeviceMotionFallback();
+          } else {
+            elStatus.textContent = `Error: ${event.error.name}`;
+          }
+        });
+
+        sensor.start();
+      } catch (err) {
+        useDeviceMotionFallback();
+      }
+    } else {
+      useDeviceMotionFallback();
+    }
+
+    // 2. Fallback to DeviceMotionEvent (Safari / standard browsers)
+    function useDeviceMotionFallback() {
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        // iOS 13+ requires manual button activation
+        btnPermission.style.display = 'block';
+        elStatus.textContent = 'Action Required: Tap button below for iOS permission';
+      } else if ('ondevicemotion' in window) {
+        window.addEventListener('devicemotion', handleMotion);
+        elStatus.textContent = 'Status: Reading from DeviceMotion API';
+        elStatus.style.background = '#065f46';
+      } else {
+        elStatus.textContent = 'Status: Sensor APIs not supported on this browser/device.';
+        elStatus.style.background = '#991b1b';
+      }
+    }
+
+    function handleMotion(event) {
+      const g = event.accelerationIncludingGravity;
+      if (g) {
+        updateDisplay(g.x, g.y, g.z);
+      }
+    }
+
+    async function requestIOSPermission() {
+      try {
+        const response = await DeviceMotionEvent.requestPermission();
+        if (response === 'granted') {
+          window.addEventListener('devicemotion', handleMotion);
+          btnPermission.style.display = 'none';
+          elStatus.textContent = 'Status: Reading from DeviceMotion API';
+          elStatus.style.background = '#065f46';
+        } else {
+          elStatus.textContent = 'Permission denied.';
+        }
+      } catch (e) {
+        elStatus.textContent = 'Error requesting permission.';
+      }
+    }
+  </script>
+</body>
+</html>
