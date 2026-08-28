@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Multi-Axis CAPTCHA - PoC</title>
+  <title>Bot Detection CAPTCHA - Robot Orientation PoC</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: #f4f6f8;
+      background-color: #0f172a;
+      color: #f8fafc;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -16,33 +17,35 @@
     }
 
     .captcha-card {
-      background: #ffffff;
+      background: #1e293b;
       padding: 24px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
       width: 320px;
       text-align: center;
       user-select: none;
+      border: 1px solid #334155;
     }
 
     h3 {
       margin-top: 0;
-      color: #333;
-      font-size: 1.1rem;
+      color: #f8fafc;
+      font-size: 1.15rem;
     }
 
     p {
-      color: #666;
+      color: #94a3b8;
       font-size: 0.85rem;
       margin-bottom: 16px;
+      line-height: 1.4;
     }
 
     #viewport {
       width: 100%;
       height: 260px;
-      background: #f8fafc;
-      border: 2px dashed #cbd5e1;
-      border-radius: 8px;
+      background: #090d16;
+      border: 2px dashed #475569;
+      border-radius: 10px;
       overflow: hidden;
       cursor: grab;
       touch-action: none;
@@ -50,7 +53,7 @@
 
     #viewport:active {
       cursor: grabbing;
-      border-color: #2563eb;
+      border-color: #38bdf8;
     }
 
     .actions {
@@ -63,28 +66,28 @@
       flex: 1;
       padding: 10px;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
 
     .btn-submit {
-      background: #2563eb;
+      background: #0284c7;
       color: white;
     }
 
     .btn-submit:hover {
-      background: #1d4ed8;
+      background: #0369a1;
     }
 
     .btn-reset {
-      background: #e2e8f0;
-      color: #475569;
+      background: #334155;
+      color: #cbd5e1;
     }
 
     .btn-reset:hover {
-      background: #cbd5e1;
+      background: #475569;
     }
 
     #status {
@@ -93,8 +96,8 @@
       font-size: 0.9rem;
       min-height: 1.2em;
     }
-    .success { color: #16a34a; }
-    .error { color: #dc2626; }
+    .success { color: #4ade80; }
+    .error { color: #f87171; }
   </style>
 
   <!-- Import Three.js via CDN -->
@@ -104,7 +107,7 @@
 
 <div class="captcha-card">
   <h3>Human Verification</h3>
-  <p>Click and drag in any direction to rotate the object until it stands completely upright.</p>
+  <p>Drag the 3D robot so that it is standing upright and <strong>pointing its arm directly at you</strong>.</p>
   
   <div id="viewport"></div>
 
@@ -117,47 +120,51 @@
 </div>
 
 <script>
-  let scene, camera, renderer, objectGroup;
+  let scene, camera, renderer, robotGroup;
   let isDragging = false;
   let previousPointerPosition = { x: 0, y: 0 };
   
-  // Acceptable error margin for orientation (in radians)
-  const TOLERANCE_RADIANS = 0.25; // ~14 degrees margin of error across all axes
+  // Acceptable error margin (~14 degrees tolerance)
+  const TOLERANCE_RADIANS = 0.25;
 
-  // 1. Initialize Scene
+  // 1. Initialize Scene & Environment
   function initScene() {
     const container = document.getElementById('viewport');
     
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf8fafc);
+    scene.background = new THREE.Color(0x090d16);
 
     camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(0, 0, 8);
+    camera.position.set(0, 0, 7.5);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
 
-    // Basic Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    // Dynamic Cyber Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
     dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
 
-    // Create 3D Object
-    create3DMug();
+    const backLight = new THREE.DirectionalLight(0x818cf8, 0.8);
+    backLight.position.set(-5, -5, -5);
+    scene.add(backLight);
 
-    // Attach Pointer (Mouse & Touch) Controls
+    // Construct 3D Robot Mesh
+    createRobotCharacter();
+
+    // Attach Drag Event Handlers
     container.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
 
-    // Setup Challenge Data
+    // Generate First Challenge
     resetCaptcha();
 
-    // Render loop
+    // Animation Loop
     function animate() {
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
@@ -165,36 +172,67 @@
     animate();
   }
 
-  // 2. Build 3D Object (Mug Mesh)
-  function create3DMug() {
-    objectGroup = new THREE.Group();
+  // 2. Build Procedural 3D Robot Character
+  function createRobotCharacter() {
+    robotGroup = new THREE.Group();
 
-    // Main Mug Body
-    const bodyGeo = new THREE.CylinderGeometry(0.8, 0.7, 1.8, 32);
-    const bodyMat = new THREE.MeshPhongMaterial({ color: 0x2563eb }); // Blue Mug
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    objectGroup.add(body);
+    const metalMaterial = new THREE.MeshPhongMaterial({ color: 0x475569, shininess: 80 });
+    const darkMetalMaterial = new THREE.MeshPhongMaterial({ color: 0x1e293b });
+    const visorMaterial = new THREE.MeshBasicMaterial({ color: 0x38bdf8 }); // Glowing Cyan
+    const pointerMaterial = new THREE.MeshBasicMaterial({ color: 0xef4444 }); // Red Pointer Tip
 
-    // Mug Rim Details (Opening inside)
-    const topGeo = new THREE.RingGeometry(0.65, 0.8, 32);
-    const topMat = new THREE.MeshBasicMaterial({ color: 0x1e3a8a, side: THREE.DoubleSide });
-    const topRim = new THREE.Mesh(topGeo, topMat);
-    topRim.rotation.x = Math.PI / 2;
-    topRim.position.y = 0.901;
-    objectGroup.add(topRim);
+    // Robot Head
+    const headGeo = new THREE.BoxGeometry(0.9, 0.7, 0.7);
+    const head = new THREE.Mesh(headGeo, metalMaterial);
+    head.position.y = 1.0;
+    robotGroup.add(head);
 
-    // Mug Handle
-    const handleGeo = new THREE.TorusGeometry(0.55, 0.1, 16, 32, Math.PI);
-    const handleMat = new THREE.MeshPhongMaterial({ color: 0x2563eb });
-    const handle = new THREE.Mesh(handleGeo, handleMat);
-    handle.position.set(-0.7, 0, 0);
-    handle.rotation.z = Math.PI / 2;
-    objectGroup.add(handle);
+    // Robot Visor / Eyes
+    const visorGeo = new THREE.BoxGeometry(0.7, 0.2, 0.1);
+    const visor = new THREE.Mesh(visorGeo, visorMaterial);
+    visor.position.set(0, 1.05, 0.36); // Positioned on front of head (+Z)
+    robotGroup.add(visor);
 
-    scene.add(objectGroup);
+    // Robot Torso
+    const torsoGeo = new THREE.CylinderGeometry(0.5, 0.4, 1.2, 16);
+    const torso = new THREE.Mesh(torsoGeo, darkMetalMaterial);
+    torso.position.y = 0;
+    robotGroup.add(torso);
+
+    // Chest Core Light (Indicates front)
+    const coreGeo = new THREE.CircleGeometry(0.15, 16);
+    const core = new THREE.Mesh(coreGeo, visorMaterial);
+    core.position.set(0, 0.2, 0.41);
+    robotGroup.add(core);
+
+    // Left Arm (Neutral by side)
+    const armGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.9);
+    const leftArm = new THREE.Mesh(armGeo, metalMaterial);
+    leftArm.position.set(-0.65, 0, 0);
+    robotGroup.add(leftArm);
+
+    // Right Arm (Extends Straight Out Forward (+Z Direction))
+    const pointingArmGroup = new THREE.Group();
+    
+    const armMesh = new THREE.Mesh(armGeo, metalMaterial);
+    armMesh.rotation.x = Math.PI / 2; // Point forward
+    armMesh.position.z = 0.45;
+    pointingArmGroup.add(armMesh);
+
+    // Red Laser / Pointer Tip on the end of arm
+    const pointerGeo = new THREE.ConeGeometry(0.08, 0.2, 16);
+    const pointerTip = new THREE.Mesh(pointerGeo, pointerMaterial);
+    pointerTip.rotation.x = Math.PI / 2;
+    pointerTip.position.z = 0.95;
+    pointingArmGroup.add(pointerTip);
+
+    pointingArmGroup.position.set(0.65, 0.2, 0);
+    robotGroup.add(pointingArmGroup);
+
+    scene.add(robotGroup);
   }
 
-  // 3. Pointer Drag Handlers (Multi-Axis Trackball Math)
+  // 3. Pointer Drag Rotation Handlers
   function onPointerDown(e) {
     isDragging = true;
     previousPointerPosition = { x: e.clientX, y: e.clientY };
@@ -206,18 +244,15 @@
     const deltaX = e.clientX - previousPointerPosition.x;
     const deltaY = e.clientY - previousPointerPosition.y;
 
-    // Convert pixel dragging to world rotation quaternion
     const deltaRotationQuaternion = new THREE.Quaternion()
       .setFromEuler(new THREE.Euler(
-        toRadians(deltaY * 0.5), // Mouse Y rotates around X-axis
-        toRadians(deltaX * 0.5), // Mouse X rotates around Y-axis
+        toRadians(deltaY * 0.5),
+        toRadians(deltaX * 0.5),
         0,
         'XYZ'
       ));
 
-    // Apply rotation relative to camera space
-    objectGroup.quaternion.multiplyQuaternions(deltaRotationQuaternion, objectGroup.quaternion);
-
+    robotGroup.quaternion.multiplyQuaternions(deltaRotationQuaternion, robotGroup.quaternion);
     previousPointerPosition = { x: e.clientX, y: e.clientY };
   }
 
@@ -229,40 +264,40 @@
     return (angle * Math.PI) / 180;
   }
 
-  // 4. Randomize 3D Orientation on Reset
+  // 4. Randomize 3D Orientation
   function resetCaptcha() {
     const status = document.getElementById('status');
     status.innerText = "";
     status.className = "";
 
-    // Generate random rotations for all 3 axes (X, Y, Z)
+    // Generate random 3D rotation angles for pitch, yaw, and roll
     const randomEuler = new THREE.Euler(
-      (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1), // Random pitch
-      (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1), // Random yaw
-      (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1)  // Random roll
+      (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
+      (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
+      (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1)
     );
 
-    objectGroup.quaternion.setFromEuler(randomEuler);
+    robotGroup.quaternion.setFromEuler(randomEuler);
   }
 
-  // 5. Verify if Object is Upright
+  // 5. Verification Logic (Checks if Arm & Visor Face Camera)
   function verifyOrientation() {
-    // In Three.js, default upright vector for cylinder/mug is +Y direction (0, 1, 0)
-    const uprightVector = new THREE.Vector3(0, 1, 0);
+    // Standard forward direction pointing at camera is +Z vector (0, 0, 1)
+    const cameraVector = new THREE.Vector3(0, 0, 1);
     
-    // Get the object's current local up-vector transformed into world space
-    const currentObjectUp = new THREE.Vector3(0, 1, 0).applyQuaternion(objectGroup.quaternion);
+    // Get the robot's local forward vector transformed into world space
+    const robotForwardVector = new THREE.Vector3(0, 0, 1).applyQuaternion(robotGroup.quaternion);
 
-    // Calculate angular difference between actual object up vector and absolute up vector
-    const angleDiff = currentObjectUp.angleTo(uprightVector);
+    // Calculate angular distance between current robot facing vector and camera direction
+    const angleDiff = robotForwardVector.angleTo(cameraVector);
 
     const status = document.getElementById('status');
 
     if (angleDiff <= TOLERANCE_RADIANS) {
-      status.innerText = "✓ Passed! Object is oriented correctly.";
+      status.innerText = "✓ Verified! Robot is pointing at you.";
       status.className = "success";
     } else {
-      status.innerText = "✗ Failed. Object is still misaligned.";
+      status.innerText = "✗ Failed. Robot is not aligned correctly.";
       status.className = "error";
     }
   }
