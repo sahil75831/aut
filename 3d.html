@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Multi-Axis CAPTCHA - PoC</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #f4f6f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .captcha-card {
+      background: #ffffff;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      width: 320px;
+      text-align: center;
+      user-select: none;
+    }
+
+    h3 {
+      margin-top: 0;
+      color: #333;
+      font-size: 1.1rem;
+    }
+
+    p {
+      color: #666;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+
+    #viewport {
+      width: 100%;
+      height: 260px;
+      background: #f8fafc;
+      border: 2px dashed #cbd5e1;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    #viewport:active {
+      cursor: grabbing;
+      border-color: #2563eb;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-submit {
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-submit:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-reset {
+      background: #e2e8f0;
+      color: #475569;
+    }
+
+    .btn-reset:hover {
+      background: #cbd5e1;
+    }
+
+    #status {
+      margin-top: 15px;
+      font-weight: bold;
+      font-size: 0.9rem;
+      min-height: 1.2em;
+    }
+    .success { color: #16a34a; }
+    .error { color: #dc2626; }
+  </style>
+
+  <!-- Import Three.js via CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+<div class="captcha-card">
+  <h3>Human Verification</h3>
+  <p>Click and drag in any direction to rotate the object until it stands completely upright.</p>
+  
+  <div id="viewport"></div>
+
+  <div class="actions">
+    <button class="btn-reset" onclick="resetCaptcha()">Reset</button>
+    <button class="btn-submit" onclick="verifyOrientation()">Verify</button>
+  </div>
+
+  <div id="status"></div>
+</div>
+
+<script>
+  let scene, camera, renderer, objectGroup;
+  let isDragging = false;
+  let previousPointerPosition = { x: 0, y: 0 };
+  
+  // Acceptable error margin for orientation (in radians)
+  const TOLERANCE_RADIANS = 0.25; // ~14 degrees margin of error across all axes
+
+  // 1. Initialize Scene
+  function initScene() {
+    const container = document.getElementById('viewport');
+    
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf8fafc);
+
+    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 0, 8);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+
+    // Basic Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(5, 10, 7);
+    scene.add(dirLight);
+
+    // Create 3D Object
+    create3DMug();
+
+    // Attach Pointer (Mouse & Touch) Controls
+    container.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+
+    // Setup Challenge Data
+    resetCaptcha();
+
+    // Render loop
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+  }
+
+  // 2. Build 3D Object (Mug Mesh)
+  function create3DMug() {
+    objectGroup = new THREE.Group();
+
+    // Main Mug Body
+    const bodyGeo = new THREE.CylinderGeometry(0.8, 0.7, 1.8, 32);
+    const bodyMat = new THREE.MeshPhongMaterial({ color: 0x2563eb }); // Blue Mug
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    objectGroup.add(body);
+
+    // Mug Rim Details (Opening inside)
+    const topGeo = new THREE.RingGeometry(0.65, 0.8, 32);
+    const topMat = new THREE.MeshBasicMaterial({ color: 0x1e3a8a, side: THREE.DoubleSide });
+    const topRim = new THREE.Mesh(topGeo, topMat);
+    topRim.rotation.x = Math.PI / 2;
+    topRim.position.y = 0.901;
+    objectGroup.add(topRim);
+
+    // Mug Handle
+    const handleGeo = new THREE.TorusGeometry(0.55, 0.1, 16, 32, Math.PI);
+    const handleMat = new THREE.MeshPhongMaterial({ color: 0x2563eb });
+    const handle = new THREE.Mesh(handleGeo, handleMat);
+    handle.position.set(-0.7, 0, 0);
+    handle.rotation.z = Math.PI / 2;
+    objectGroup.add(handle);
+
+    scene.add(objectGroup);
+  }
+
+  // 3. Pointer Drag Handlers (Multi-Axis Trackball Math)
+  function onPointerDown(e) {
+    isDragging = true;
+    previousPointerPosition = { x: e.clientX, y: e.clientY };
+  }
+
+  function onPointerMove(e) {
+    if (!isDragging) return;
+
+    const deltaX = e.clientX - previousPointerPosition.x;
+    const deltaY = e.clientY - previousPointerPosition.y;
+
+    // Convert pixel dragging to world rotation quaternion
+    const deltaRotationQuaternion = new THREE.Quaternion()
+      .setFromEuler(new THREE.Euler(
+        toRadians(deltaY * 0.5), // Mouse Y rotates around X-axis
+        toRadians(deltaX * 0.5), // Mouse X rotates around Y-axis
+        0,
+        'XYZ'
+      ));
+
+    // Apply rotation relative to camera space
+    objectGroup.quaternion.multiplyQuaternions(deltaRotationQuaternion, objectGroup.quaternion);
+
+    previousPointerPosition = { x: e.clientX, y: e.clientY };
+  }
+
+  function onPointerUp() {
+    isDragging = false;
+  }
+
+  function toRadians(angle) {
+    return (angle * Math.PI) / 180;
+  }
+
+  // 4. Randomize 3D Orientation on Reset
+  function resetCaptcha() {
+    const status = document.getElementById('status');
+    status.innerText = "";
+    status.className = "";
+
+    // Generate random rotations for all 3 axes (X, Y, Z)
+    const randomEuler = new THREE.Euler(
+      (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1), // Random pitch
+      (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1), // Random yaw
+      (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1)  // Random roll
+    );
+
+    objectGroup.quaternion.setFromEuler(randomEuler);
+  }
+
+  // 5. Verify if Object is Upright
+  function verifyOrientation() {
+    // In Three.js, default upright vector for cylinder/mug is +Y direction (0, 1, 0)
+    const uprightVector = new THREE.Vector3(0, 1, 0);
+    
+    // Get the object's current local up-vector transformed into world space
+    const currentObjectUp = new THREE.Vector3(0, 1, 0).applyQuaternion(objectGroup.quaternion);
+
+    // Calculate angular difference between actual object up vector and absolute up vector
+    const angleDiff = currentObjectUp.angleTo(uprightVector);
+
+    const status = document.getElementById('status');
+
+    if (angleDiff <= TOLERANCE_RADIANS) {
+      status.innerText = "✓ Passed! Object is oriented correctly.";
+      status.className = "success";
+    } else {
+      status.innerText = "✗ Failed. Object is still misaligned.";
+      status.className = "error";
+    }
+  }
+
+  window.onload = initScene;
+</script>
+</body>
+</html>
