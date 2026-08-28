@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>mFilterIt Security Verification</title>
+  <title>Pascalían Security Verification</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: #0d0914;
-      color: #ffffff;
+      background-color: #f8fafc;
+      color: #334155;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -17,38 +17,30 @@
     }
 
     .captcha-card {
-      background: #171123;
+      background: #ffffff;
       padding: 24px;
       border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(112, 10, 168, 0.2);
-      width: 320px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      width: 330px;
       text-align: center;
       user-select: none;
-      border: 1px solid #2f1d47;
-    }
-
-    .logo-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      margin-bottom: 12px;
+      border: 1px solid #e2e8f0;
     }
 
     .brand-title {
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: #ffffff;
-      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #475569;
+      margin: 0 0 8px 0;
       letter-spacing: -0.5px;
     }
 
     .brand-title span {
-      color: #8b5cf6;
+      color: #f97316;
     }
 
     p {
-      color: #a78bfa;
+      color: #64748b;
       font-size: 0.85rem;
       margin-bottom: 16px;
       line-height: 1.4;
@@ -57,8 +49,8 @@
     #viewport {
       width: 100%;
       height: 260px;
-      background: #090510;
-      border: 2px dashed #4c1d95;
+      background: #f1f5f9;
+      border: 2px dashed #cbd5e1;
       border-radius: 12px;
       overflow: hidden;
       cursor: grab;
@@ -67,7 +59,7 @@
 
     #viewport:active {
       cursor: grabbing;
-      border-color: #a855f7;
+      border-color: #f97316;
     }
 
     .actions {
@@ -87,22 +79,22 @@
     }
 
     .btn-submit {
-      background: linear-gradient(135deg, #7e22ce, #6b21a8);
+      background: #f97316;
       color: white;
-      box-shadow: 0 4px 12px rgba(126, 34, 206, 0.4);
+      box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
     }
 
     .btn-submit:hover {
-      background: linear-gradient(135deg, #9333ea, #7e22ce);
+      background: #ea580c;
     }
 
     .btn-reset {
-      background: #2e1065;
-      color: #ddd6fe;
+      background: #e2e8f0;
+      color: #475569;
     }
 
     .btn-reset:hover {
-      background: #3b0764;
+      background: #cbd5e1;
     }
 
     #status {
@@ -111,8 +103,8 @@
       font-size: 0.9rem;
       min-height: 1.2em;
     }
-    .success { color: #4ade80; }
-    .error { color: #f87171; }
+    .success { color: #16a34a; }
+    .error { color: #dc2626; }
   </style>
 
   <!-- Import Three.js via CDN -->
@@ -121,10 +113,8 @@
 <body>
 
 <div class="captcha-card">
-  <div class="logo-container">
-    <h3 class="brand-title">m<span>Filter</span>It</h3>
-  </div>
-  <p>Drag the 3D logo so that the <strong>filter icon is upright and facing you</strong>.</p>
+  <h3 class="brand-title">Pascal<span>í</span>an</h3>
+  <p>Drag the 3D orange accent mark until it points <strong>upward toward the top-right</strong> facing you.</p>
   
   <div id="viewport"></div>
 
@@ -137,11 +127,11 @@
 </div>
 
 <script>
-  let scene, camera, renderer, logoGroup;
+  let scene, camera, renderer, accentGroup;
   let isDragging = false;
   let previousPointerPosition = { x: 0, y: 0 };
   
-  // Acceptable error margin (~14 degrees tolerance)
+  // Margin of error allowance (~14 degrees)
   const TOLERANCE_RADIANS = 0.25;
 
   // 1. Initialize Scene & Environment
@@ -149,39 +139,35 @@
     const container = document.getElementById('viewport');
     
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x090510);
+    scene.background = new THREE.Color(0xf1f5f9);
 
     camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
-    camera.position.set(0, 0, 7.5);
+    camera.position.set(0, 0, 7);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
 
-    // Purple/Cyber Lights matching mFilterIt theme
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    // Warm Lighting Setup
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xa855f7, 1.5);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
     dirLight.position.set(5, 8, 5);
     scene.add(dirLight);
 
-    const backLight = new THREE.DirectionalLight(0x3b82f6, 0.8);
-    backLight.position.set(-5, -5, -5);
-    scene.add(backLight);
-
-    // Construct 3D mFilterIt Emblem
-    createmFilterItLogo();
+    // Build 3D Pascalian Accent Mark
+    createPascalianAccent();
 
     // Attach Drag Event Handlers
     container.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
 
-    // Generate First Challenge
+    // Generate Initial Challenge
     resetCaptcha();
 
-    // Animation Loop
+    // Render Loop
     function animate() {
       requestAnimationFrame(animate);
       renderer.render(scene, camera);
@@ -189,58 +175,34 @@
     animate();
   }
 
-  // 2. Build Procedural 3D mFilterIt Logo Emblem
-  function createmFilterItLogo() {
-    logoGroup = new THREE.Group();
+  // 2. Build Procedural 3D Orange Leaf/Accent Mark
+  function createPascalianAccent() {
+    accentGroup = new THREE.Group();
 
-    // Metallic Purple Material for Hexagon Shield
-    const purpleMaterial = new THREE.MeshPhongMaterial({ 
-      color: 0x6b21a8, 
-      shininess: 90,
-      specular: 0xc084fc
+    // Vibrant Orange Material matching Pascalian logo accent
+    const orangeMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0xf97316, 
+      shininess: 60,
+      specular: 0xffedd5
     });
+
+    // Create 2D Curved Accent Blade Shape
+    const accentShape = new THREE.Shape();
+    accentShape.moveTo(0, -1.2);
+    accentShape.quadraticCurveTo(0.6, -0.2, 0.8, 0.8);
+    accentShape.quadraticCurveTo(0.2, 0.5, 0, -1.2);
+
+    const extrudeSettings = { depth: 0.2, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.05, bevelThickness: 0.05 };
+    const accentGeo = new THREE.ExtrudeGeometry(accentShape, extrudeSettings);
+    accentGeo.center();
     
-    const whiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-
-    // Build Rounded Hexagon Geometry Base
-    const hexShape = new THREE.Shape();
-    const radius = 1.3;
-    for (let i = 0; i < 6; i++) {
-      const angle = (i * Math.PI) / 3 + Math.PI / 6;
-      const x = radius * Math.cos(angle);
-      const y = radius * Math.sin(angle);
-      if (i === 0) hexShape.moveTo(x, y);
-      else hexShape.lineTo(x, y);
-    }
-    hexShape.closePath();
-
-    const extrudeSettings = { depth: 0.3, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.08, bevelThickness: 0.08 };
-    const hexGeo = new THREE.ExtrudeGeometry(hexShape, extrudeSettings);
-    hexGeo.center();
+    const accentMesh = new THREE.Mesh(accentGeo, orangeMaterial);
     
-    const hexagon = new THREE.Mesh(hexGeo, purpleMaterial);
-    logoGroup.add(hexagon);
+    // Tilt to match the logo's signature diagonal accent inclination
+    accentMesh.rotation.z = -Math.PI / 6;
 
-    // Build Inner Funnel Icon (Front Facing)
-    const funnelGroup = new THREE.Group();
-
-    // Funnel Top Trap
-    const topGeo = new THREE.CylinderGeometry(0.55, 0.25, 0.45, 32);
-    const topMesh = new THREE.Mesh(topGeo, whiteMaterial);
-    topMesh.position.y = 0.22;
-    funnelGroup.add(topMesh);
-
-    // Funnel Bottom Stem
-    const stemGeo = new THREE.BoxGeometry(0.18, 0.45, 0.1);
-    const stemMesh = new THREE.Mesh(stemGeo, whiteMaterial);
-    stemMesh.position.y = -0.18;
-    funnelGroup.add(stemMesh);
-
-    // Position Funnel slightly off front face (+Z)
-    funnelGroup.position.z = 0.24;
-    logoGroup.add(funnelGroup);
-
-    scene.add(logoGroup);
+    accentGroup.add(accentMesh);
+    scene.add(accentGroup);
   }
 
   // 3. Pointer Drag Rotation Handlers
@@ -263,7 +225,7 @@
         'XYZ'
       ));
 
-    logoGroup.quaternion.multiplyQuaternions(deltaRotationQuaternion, logoGroup.quaternion);
+    accentGroup.quaternion.multiplyQuaternions(deltaRotationQuaternion, accentGroup.quaternion);
     previousPointerPosition = { x: e.clientX, y: e.clientY };
   }
 
@@ -275,30 +237,28 @@
     return (angle * Math.PI) / 180;
   }
 
-  // 4. Randomize 3D Orientation
+  // 4. Randomize 3D Orientation on Reset
   function resetCaptcha() {
     const status = document.getElementById('status');
     status.innerText = "";
     status.className = "";
 
-    // Randomize Pitch, Yaw, and Roll
+    // Generate random rotations along X, Y, Z axes
     const randomEuler = new THREE.Euler(
       (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
       (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
       (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1)
     );
 
-    logoGroup.quaternion.setFromEuler(randomEuler);
+    accentGroup.quaternion.setFromEuler(randomEuler);
   }
 
-  // 5. Verification Logic (Checks if Shield & Funnel face the user upright)
+  // 5. Verification Logic
   function verifyOrientation() {
-    // Standard forward vector facing camera is +Z (0, 0, 1)
     const cameraVector = new THREE.Vector3(0, 0, 1);
-    const logoForwardVector = new THREE.Vector3(0, 0, 1).applyQuaternion(logoGroup.quaternion);
+    const accentForwardVector = new THREE.Vector3(0, 0, 1).applyQuaternion(accentGroup.quaternion);
 
-    // Calculate angular offset
-    const angleDiff = logoForwardVector.angleTo(cameraVector);
+    const angleDiff = accentForwardVector.angleTo(cameraVector);
 
     const status = document.getElementById('status');
 
@@ -306,7 +266,7 @@
       status.innerText = "✓ Verification Successful!";
       status.className = "success";
     } else {
-      status.innerText = "✗ Misaligned. Rotate the filter upright.";
+      status.innerText = "✗ Misaligned. Align the mark correctly.";
       status.className = "error";
     }
   }
