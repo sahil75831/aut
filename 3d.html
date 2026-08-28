@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bot Detection CAPTCHA - Robot Orientation PoC</title>
+  <title>mFilterIt Security Verification</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: #0f172a;
-      color: #f8fafc;
+      background-color: #0d0914;
+      color: #ffffff;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -17,24 +17,38 @@
     }
 
     .captcha-card {
-      background: #1e293b;
+      background: #171123;
       padding: 24px;
       border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      box-shadow: 0 10px 30px rgba(112, 10, 168, 0.2);
       width: 320px;
       text-align: center;
       user-select: none;
-      border: 1px solid #334155;
+      border: 1px solid #2f1d47;
     }
 
-    h3 {
-      margin-top: 0;
-      color: #f8fafc;
-      font-size: 1.15rem;
+    .logo-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .brand-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-title span {
+      color: #8b5cf6;
     }
 
     p {
-      color: #94a3b8;
+      color: #a78bfa;
       font-size: 0.85rem;
       margin-bottom: 16px;
       line-height: 1.4;
@@ -43,9 +57,9 @@
     #viewport {
       width: 100%;
       height: 260px;
-      background: #090d16;
-      border: 2px dashed #475569;
-      border-radius: 10px;
+      background: #090510;
+      border: 2px dashed #4c1d95;
+      border-radius: 12px;
       overflow: hidden;
       cursor: grab;
       touch-action: none;
@@ -53,7 +67,7 @@
 
     #viewport:active {
       cursor: grabbing;
-      border-color: #38bdf8;
+      border-color: #a855f7;
     }
 
     .actions {
@@ -64,7 +78,7 @@
 
     button {
       flex: 1;
-      padding: 10px;
+      padding: 11px;
       border: none;
       border-radius: 8px;
       font-weight: 600;
@@ -73,21 +87,22 @@
     }
 
     .btn-submit {
-      background: #0284c7;
+      background: linear-gradient(135deg, #7e22ce, #6b21a8);
       color: white;
+      box-shadow: 0 4px 12px rgba(126, 34, 206, 0.4);
     }
 
     .btn-submit:hover {
-      background: #0369a1;
+      background: linear-gradient(135deg, #9333ea, #7e22ce);
     }
 
     .btn-reset {
-      background: #334155;
-      color: #cbd5e1;
+      background: #2e1065;
+      color: #ddd6fe;
     }
 
     .btn-reset:hover {
-      background: #475569;
+      background: #3b0764;
     }
 
     #status {
@@ -106,8 +121,10 @@
 <body>
 
 <div class="captcha-card">
-  <h3>Human Verification</h3>
-  <p>Drag the 3D robot so that it is standing upright and <strong>pointing its arm directly at you</strong>.</p>
+  <div class="logo-container">
+    <h3 class="brand-title">m<span>Filter</span>It</h3>
+  </div>
+  <p>Drag the 3D logo so that the <strong>filter icon is upright and facing you</strong>.</p>
   
   <div id="viewport"></div>
 
@@ -120,7 +137,7 @@
 </div>
 
 <script>
-  let scene, camera, renderer, robotGroup;
+  let scene, camera, renderer, logoGroup;
   let isDragging = false;
   let previousPointerPosition = { x: 0, y: 0 };
   
@@ -132,7 +149,7 @@
     const container = document.getElementById('viewport');
     
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x090d16);
+    scene.background = new THREE.Color(0x090510);
 
     camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
     camera.position.set(0, 0, 7.5);
@@ -141,20 +158,20 @@
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
 
-    // Dynamic Cyber Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Purple/Cyber Lights matching mFilterIt theme
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
-    dirLight.position.set(5, 10, 7);
+    const dirLight = new THREE.DirectionalLight(0xa855f7, 1.5);
+    dirLight.position.set(5, 8, 5);
     scene.add(dirLight);
 
-    const backLight = new THREE.DirectionalLight(0x818cf8, 0.8);
+    const backLight = new THREE.DirectionalLight(0x3b82f6, 0.8);
     backLight.position.set(-5, -5, -5);
     scene.add(backLight);
 
-    // Construct 3D Robot Mesh
-    createRobotCharacter();
+    // Construct 3D mFilterIt Emblem
+    createmFilterItLogo();
 
     // Attach Drag Event Handlers
     container.addEventListener('pointerdown', onPointerDown);
@@ -172,64 +189,58 @@
     animate();
   }
 
-  // 2. Build Procedural 3D Robot Character
-  function createRobotCharacter() {
-    robotGroup = new THREE.Group();
+  // 2. Build Procedural 3D mFilterIt Logo Emblem
+  function createmFilterItLogo() {
+    logoGroup = new THREE.Group();
 
-    const metalMaterial = new THREE.MeshPhongMaterial({ color: 0x475569, shininess: 80 });
-    const darkMetalMaterial = new THREE.MeshPhongMaterial({ color: 0x1e293b });
-    const visorMaterial = new THREE.MeshBasicMaterial({ color: 0x38bdf8 }); // Glowing Cyan
-    const pointerMaterial = new THREE.MeshBasicMaterial({ color: 0xef4444 }); // Red Pointer Tip
-
-    // Robot Head
-    const headGeo = new THREE.BoxGeometry(0.9, 0.7, 0.7);
-    const head = new THREE.Mesh(headGeo, metalMaterial);
-    head.position.y = 1.0;
-    robotGroup.add(head);
-
-    // Robot Visor / Eyes
-    const visorGeo = new THREE.BoxGeometry(0.7, 0.2, 0.1);
-    const visor = new THREE.Mesh(visorGeo, visorMaterial);
-    visor.position.set(0, 1.05, 0.36); // Positioned on front of head (+Z)
-    robotGroup.add(visor);
-
-    // Robot Torso
-    const torsoGeo = new THREE.CylinderGeometry(0.5, 0.4, 1.2, 16);
-    const torso = new THREE.Mesh(torsoGeo, darkMetalMaterial);
-    torso.position.y = 0;
-    robotGroup.add(torso);
-
-    // Chest Core Light (Indicates front)
-    const coreGeo = new THREE.CircleGeometry(0.15, 16);
-    const core = new THREE.Mesh(coreGeo, visorMaterial);
-    core.position.set(0, 0.2, 0.41);
-    robotGroup.add(core);
-
-    // Left Arm (Neutral by side)
-    const armGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.9);
-    const leftArm = new THREE.Mesh(armGeo, metalMaterial);
-    leftArm.position.set(-0.65, 0, 0);
-    robotGroup.add(leftArm);
-
-    // Right Arm (Extends Straight Out Forward (+Z Direction))
-    const pointingArmGroup = new THREE.Group();
+    // Metallic Purple Material for Hexagon Shield
+    const purpleMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x6b21a8, 
+      shininess: 90,
+      specular: 0xc084fc
+    });
     
-    const armMesh = new THREE.Mesh(armGeo, metalMaterial);
-    armMesh.rotation.x = Math.PI / 2; // Point forward
-    armMesh.position.z = 0.45;
-    pointingArmGroup.add(armMesh);
+    const whiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
-    // Red Laser / Pointer Tip on the end of arm
-    const pointerGeo = new THREE.ConeGeometry(0.08, 0.2, 16);
-    const pointerTip = new THREE.Mesh(pointerGeo, pointerMaterial);
-    pointerTip.rotation.x = Math.PI / 2;
-    pointerTip.position.z = 0.95;
-    pointingArmGroup.add(pointerTip);
+    // Build Rounded Hexagon Geometry Base
+    const hexShape = new THREE.Shape();
+    const radius = 1.3;
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3 + Math.PI / 6;
+      const x = radius * Math.cos(angle);
+      const y = radius * Math.sin(angle);
+      if (i === 0) hexShape.moveTo(x, y);
+      else hexShape.lineTo(x, y);
+    }
+    hexShape.closePath();
 
-    pointingArmGroup.position.set(0.65, 0.2, 0);
-    robotGroup.add(pointingArmGroup);
+    const extrudeSettings = { depth: 0.3, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 0.08, bevelThickness: 0.08 };
+    const hexGeo = new THREE.ExtrudeGeometry(hexShape, extrudeSettings);
+    hexGeo.center();
+    
+    const hexagon = new THREE.Mesh(hexGeo, purpleMaterial);
+    logoGroup.add(hexagon);
 
-    scene.add(robotGroup);
+    // Build Inner Funnel Icon (Front Facing)
+    const funnelGroup = new THREE.Group();
+
+    // Funnel Top Trap
+    const topGeo = new THREE.CylinderGeometry(0.55, 0.25, 0.45, 32);
+    const topMesh = new THREE.Mesh(topGeo, whiteMaterial);
+    topMesh.position.y = 0.22;
+    funnelGroup.add(topMesh);
+
+    // Funnel Bottom Stem
+    const stemGeo = new THREE.BoxGeometry(0.18, 0.45, 0.1);
+    const stemMesh = new THREE.Mesh(stemGeo, whiteMaterial);
+    stemMesh.position.y = -0.18;
+    funnelGroup.add(stemMesh);
+
+    // Position Funnel slightly off front face (+Z)
+    funnelGroup.position.z = 0.24;
+    logoGroup.add(funnelGroup);
+
+    scene.add(logoGroup);
   }
 
   // 3. Pointer Drag Rotation Handlers
@@ -252,7 +263,7 @@
         'XYZ'
       ));
 
-    robotGroup.quaternion.multiplyQuaternions(deltaRotationQuaternion, robotGroup.quaternion);
+    logoGroup.quaternion.multiplyQuaternions(deltaRotationQuaternion, logoGroup.quaternion);
     previousPointerPosition = { x: e.clientX, y: e.clientY };
   }
 
@@ -270,34 +281,32 @@
     status.innerText = "";
     status.className = "";
 
-    // Generate random 3D rotation angles for pitch, yaw, and roll
+    // Randomize Pitch, Yaw, and Roll
     const randomEuler = new THREE.Euler(
       (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
       (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1),
       (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1)
     );
 
-    robotGroup.quaternion.setFromEuler(randomEuler);
+    logoGroup.quaternion.setFromEuler(randomEuler);
   }
 
-  // 5. Verification Logic (Checks if Arm & Visor Face Camera)
+  // 5. Verification Logic (Checks if Shield & Funnel face the user upright)
   function verifyOrientation() {
-    // Standard forward direction pointing at camera is +Z vector (0, 0, 1)
+    // Standard forward vector facing camera is +Z (0, 0, 1)
     const cameraVector = new THREE.Vector3(0, 0, 1);
-    
-    // Get the robot's local forward vector transformed into world space
-    const robotForwardVector = new THREE.Vector3(0, 0, 1).applyQuaternion(robotGroup.quaternion);
+    const logoForwardVector = new THREE.Vector3(0, 0, 1).applyQuaternion(logoGroup.quaternion);
 
-    // Calculate angular distance between current robot facing vector and camera direction
-    const angleDiff = robotForwardVector.angleTo(cameraVector);
+    // Calculate angular offset
+    const angleDiff = logoForwardVector.angleTo(cameraVector);
 
     const status = document.getElementById('status');
 
     if (angleDiff <= TOLERANCE_RADIANS) {
-      status.innerText = "✓ Verified! Robot is pointing at you.";
+      status.innerText = "✓ Verification Successful!";
       status.className = "success";
     } else {
-      status.innerText = "✗ Failed. Robot is not aligned correctly.";
+      status.innerText = "✗ Misaligned. Rotate the filter upright.";
       status.className = "error";
     }
   }
